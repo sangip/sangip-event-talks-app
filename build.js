@@ -1,0 +1,259 @@
+// build.js
+const fs = require('fs');
+const path = require('path');
+
+const talksData = [
+    {
+        title: "Introduction to Generative AI",
+        speakers: ["Dr. Ava Synthesis"],
+        category: ["AI", "Machine Learning"],
+        duration: 60,
+        description: "Explore the fundamentals of generative AI, its applications, and future trends. Understand how models like GPT and DALL-E work."
+    },
+    {
+        title: "Frontend Frameworks: React vs. Vue",
+        speakers: ["Mr. Ben Coder"],
+        category: ["Web Development", "Frontend", "JavaScript"],
+        duration: 60,
+        description: "A deep dive into the pros and cons of React and Vue.js for modern web development. Learn when to choose which framework."
+    },
+    {
+        title: "Secure Microservices Architecture",
+        speakers: ["Ms. Clara Byte", "Dr. David Encrypt"],
+        category: ["Security", "Backend", "Cloud"],
+        duration: 60,
+        description: "Best practices for designing and securing microservices. Topics include API gateways, authentication, and authorization."
+    },
+    {
+        title: "Data Visualization with D3.js",
+        speakers: ["Dr. Emily Charts"],
+        category: ["Data Science", "Visualization", "JavaScript"],
+        duration: 60,
+        description: "Learn to create stunning and interactive data visualizations using D3.js. From basic charts to complex graph layouts."
+    },
+    {
+        title: "DevOps for Modern Applications",
+        speakers: ["Mr. Frank Pipeline"],
+        category: ["DevOps", "Cloud", "Automation"],
+        duration: 60,
+        description: "Implement continuous integration and continuous deployment (CI/CD) pipelines for scalable applications. Explore tools like Jenkins and Kubernetes."
+    },
+    {
+        title: "Quantum Computing: The Basics",
+        speakers: ["Prof. Grace Qubit"],
+        category: ["Quantum Computing", "Physics"],
+        duration: 60,
+        description: "An introductory session to the principles of quantum computing, quantum bits, and potential future impacts."
+    }
+];
+
+const cssContent = `
+body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background-color: #f4f4f4;
+    color: #333;
+}
+.container {
+    max-width: 900px;
+    margin: 0 auto;
+    background-color: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+h1 {
+    text-align: center;
+    color: #0056b3;
+}
+.search-container {
+    margin-bottom: 20px;
+    text-align: center;
+}
+.search-container input {
+    width: 70%;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 16px;
+}
+.talk-card {
+    background-color: #f9f9f9;
+    border: 1px solid #eee;
+    padding: 15px;
+    margin-bottom: 10px;
+    border-radius: 5px;
+    display: flex;
+    align-items: flex-start;
+}
+.talk-card.break {
+    background-color: #e0f7fa;
+    justify-content: center;
+    text-align: center;
+    font-weight: bold;
+}
+.talk-time {
+    font-weight: bold;
+    color: #0056b3;
+    flex-shrink: 0;
+    width: 120px;
+    margin-right: 15px;
+    text-align: right;
+}
+.talk-details {
+    flex-grow: 1;
+}
+.talk-details h2 {
+    margin-top: 0;
+    color: #0056b3;
+    font-size: 1.2em;
+}
+.talk-details p {
+    margin: 5px 0;
+}
+.talk-details .speakers {
+    font-style: italic;
+    color: #555;
+}
+.talk-details .category {
+    font-size: 0.9em;
+    color: #777;
+}
+.no-talks {
+    text-align: center;
+    color: #888;
+    margin-top: 50px;
+}
+`;
+
+const jsCodeForBrowser = `
+const talksData = ${JSON.stringify(talksData, null, 2)};
+
+function generateSchedule(talks, startTime, lunchBreakAfterTalkIndex, lunchBreakDurationMinutes, transitionDurationMinutes) {
+    let currentHour = startTime; // Date object for 10:00 AM
+    const schedule = [];
+    const talkDurationMinutes = 60; // Fixed duration per talk
+
+    for (let i = 0; i < talks.length; i++) {
+        const talk = talks[i];
+        const start = new Date(currentHour);
+        const end = new Date(start.getTime() + talkDurationMinutes * 60 * 1000);
+
+        schedule.push({
+            ...talk,
+            startTime: start.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            endTime: end.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        });
+
+        currentHour = new Date(end.getTime());
+
+        if (i === lunchBreakAfterTalkIndex - 1) { // -1 because it's 0-indexed
+            const lunchStart = new Date(currentHour);
+            const lunchEnd = new Date(lunchStart.getTime() + lunchBreakDurationMinutes * 60 * 1000);
+            schedule.push({
+                title: "Lunch Break",
+                isBreak: true,
+                startTime: lunchStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                endTime: lunchEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                duration: lunchBreakDurationMinutes
+            });
+            currentHour = new Date(lunchEnd.getTime());
+        }
+
+        if (i < talks.length - 1) { // Add transition time if not the last talk
+            currentHour = new Date(currentHour.getTime() + transitionDurationMinutes * 60 * 1000);
+        }
+    }
+    return schedule;
+}
+
+function renderSchedule(filteredTalks) {
+    const scheduleContainer = document.getElementById('schedule');
+    scheduleContainer.innerHTML = ''; // Clear previous schedule
+
+    if (filteredTalks.length === 0) {
+        scheduleContainer.innerHTML = '<p class="no-talks">No talks found for this category.</p>';
+        return;
+    }
+
+    const eventStartTime = new Date();
+    eventStartTime.setHours(10, 0, 0, 0); // Event starts at 10:00 AM
+
+    const fullSchedule = generateSchedule(
+        filteredTalks,
+        eventStartTime,
+        2, // Lunch break after the 2nd talk
+        60, // 1 hour lunch break
+        10  // 10 minute transition
+    );
+
+    fullSchedule.forEach(item => {
+        const card = document.createElement('div');
+        card.classList.add('talk-card');
+        if (item.isBreak) {
+            card.classList.add('break');
+            card.innerHTML = \`
+                <div class="talk-time">\\\${item.startTime} - \\\${item.endTime}</div>
+                <div class="talk-details">
+                    <h2>\\\${item.title}</h2>
+                </div>
+            \`;
+        } else {
+            card.innerHTML = \`
+                <div class="talk-time">\\\${item.startTime} - \\\${item.endTime}</div>
+                <div class="talk-details">
+                    <h2>\\\${item.title}</h2>
+                    <p class="speakers">\\\${item.speakers.join(', ')}</p>
+                    <p>\\\${item.description}</p>
+                    <p class="category">Categories: \\\${item.category.join(', ')}</p>
+                </div>
+            \`;
+        }
+        scheduleContainer.appendChild(card);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    renderSchedule(talksData); // Initial render of all talks
+
+    const searchInput = document.getElementById('categorySearch');
+    searchInput.addEventListener('input', (event) => {
+        const searchTerm = event.target.value.toLowerCase();
+        const filteredTalks = talksData.filter(talk => {
+            if (talk.isBreak) return true; // Always show breaks
+            return talk.category.some(cat => cat.toLowerCase().includes(searchTerm));
+        });
+        renderSchedule(filteredTalks);
+    });
+});
+`;
+
+const htmlOutput = `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Technical Talks Day</title>
+    <style>
+${cssContent}
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Technical Talks Day</h1>
+        <div class="search-container">
+            <input type="text" id="categorySearch" placeholder="Search by category...">
+        </div>
+        <div id="schedule">
+            <!-- Talks will be rendered here by JavaScript -->
+        </div>
+    </div>
+    <script>
+${jsCodeForBrowser}
+    </script>
+</body>
+</html>`;
+
+fs.writeFileSync(path.join(__dirname, 'index.html'), htmlOutput);
+console.log('index.html generated successfully!');
